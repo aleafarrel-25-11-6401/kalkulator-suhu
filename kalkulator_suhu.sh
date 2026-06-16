@@ -28,10 +28,5 @@ if [ ! -f "$SKRIP_PYTHON" ]; then
     exit 1
 fi
 
-# Memastikan file python memiliki izin eksekusi
-if [ ! -x "$SKRIP_PYTHON" ]; then
-    chmod +x "$SKRIP_PYTHON" 2>/dev/null
-fi
-
-# Menjalankan skrip python, dan meneruskan argumen apapun
-python3 "$SKRIP_PYTHON" "$@"
+# Menjalankan skrip python tanpa meneruskan parameter yang tidak perlu
+python3 "$SKRIP_PYTHON"

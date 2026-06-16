@@ -13,7 +13,7 @@ import sys
 import os
 import re
 import math
-from typing import Optional
+from typing import Optional, Tuple
 
 # --- Konstanta ---
 CELSIUS = "Celsius"
@@ -155,10 +155,29 @@ def tampilkan_tajuk() -> None:
     print(f"{WarnaTerminal.OKCYAN}{WarnaTerminal.BOLD}╚══════════════════════════════════════════════════════╝{WarnaTerminal.ENDC}")
     print()
 
+def validasi_nol_mutlak(nilai: float, unit: str) -> Tuple[bool, str]:
+    """!
+    @brief Memvalidasi nilai suhu agar tidak berada di bawah titik nol mutlak sesuai hukum fisika.
+    @param nilai Angka suhu.
+    @param unit Satuan suhu.
+    @return Tuple (bool validitas, string batas minimum).
+    """
+    if unit == CELSIUS and nilai < -273.15:
+        return False, "-273.15 °C"
+    elif unit == FAHRENHEIT and nilai < -459.67:
+        return False, "-459.67 °F"
+    elif unit == REAMUR and nilai < -218.52:
+        return False, "-218.52 °R"
+    elif unit == KELVIN and nilai < 0:
+        return False, "0 K"
+    return True, ""
+
 def minta_pilihan_unit(judul_permintaan: str, bisa_kembali: bool = False, unit_dilarang: Optional[str] = None) -> Optional[str]:
     """!
     @brief Meminta pengguna untuk memilih satuan suhu dari menu.
     @details Terus mengulang hingga pengguna memberikan angka yang valid (1-5). Menyediakan opsi keluar langsung dan kembali.
+             Layar akan dibersihkan tiap iterasi agar terminal tidak kotor.
+             Menampilkan unit asal yang telah dipilih jika parameter unit_dilarang disertakan.
     @param judul_permintaan Teks yang ditampilkan sebagai petunjuk pemilihan.
     @param bisa_kembali Boolean yang menentukan apakah ada opsi untuk kembali ke awal.
     @param unit_dilarang Nama unit yang tidak boleh dipilih (untuk mencegah unit asal dan tujuan sama).
@@ -171,13 +190,19 @@ def minta_pilihan_unit(judul_permintaan: str, bisa_kembali: bool = False, unit_d
         "4": KELVIN,
         "5": "KELUAR"
     }
-    opsi = [
+    
+    opsi = []
+    if unit_dilarang:
+        opsi.append(f"{WarnaTerminal.OKCYAN}✦ Unit Asal yang dipilih: {WarnaTerminal.BOLD}{unit_dilarang}{WarnaTerminal.ENDC}")
+        opsi.append("")
+        
+    opsi.extend([
         "1. Celsius (C)",
         "2. Fahrenheit (F)",
         "3. Reamur (R)",
         "4. Kelvin (K)",
         ""
-    ]
+    ])
     
     if bisa_kembali:
         opsi.append(f"{WarnaTerminal.WARNING}Kembali   : Ketik 'q' untuk pilih ulang suhu asal{WarnaTerminal.ENDC}")
@@ -187,8 +212,16 @@ def minta_pilihan_unit(judul_permintaan: str, bisa_kembali: bool = False, unit_d
     
     teks_input = f"  {WarnaTerminal.BOLD}▶ Pilihan Anda (1-5/q): {WarnaTerminal.ENDC}" if bisa_kembali else f"  {WarnaTerminal.BOLD}▶ Pilihan Anda (1-5): {WarnaTerminal.ENDC}"
     
+    pesan_error = ""
     while True:
+        bersihkan_layar()
+        tampilkan_tajuk()
         cetak_kotak_ui(judul_permintaan, opsi, WarnaTerminal.OKBLUE)
+        
+        if pesan_error:
+            print(f"    {pesan_error}\n")
+            pesan_error = ""
+            
         pilihan = input(teks_input).strip().lower()
         
         if bisa_kembali and pilihan in ['q', 'kembali', 'menu', 'back']:
@@ -201,66 +234,69 @@ def minta_pilihan_unit(judul_permintaan: str, bisa_kembali: bool = False, unit_d
                 
             unit_terpilih = daftar_unit[pilihan]
             if unit_dilarang and unit_terpilih == unit_dilarang:
-                print(f"    {WarnaTerminal.FAIL}❌ Unit tujuan tidak boleh sama dengan unit asal ({unit_dilarang}). Silakan pilih unit yang berbeda.{WarnaTerminal.ENDC}\n")
+                pesan_error = f"{WarnaTerminal.FAIL}❌ Unit tujuan tidak boleh sama dengan unit asal ({unit_dilarang}). Silakan pilih unit yang berbeda.{WarnaTerminal.ENDC}"
                 continue
                 
             print(f"    {WarnaTerminal.OKGREEN}✓ Terpilih: {unit_terpilih}{WarnaTerminal.ENDC}\n")
             return unit_terpilih
         else:
-            print(f"    {WarnaTerminal.FAIL}❌ Pilihan tidak valid. Silakan coba lagi.{WarnaTerminal.ENDC}\n")
+            pesan_error = f"{WarnaTerminal.FAIL}❌ Pilihan tidak valid. Silakan coba lagi.{WarnaTerminal.ENDC}"
 
 def minta_nilai_suhu(unit: str) -> Optional[float]:
     """!
     @brief Meminta pengguna memasukkan nilai suhu dalam bentuk angka desimal.
     @details Memverifikasi input agar di atas nilai nol mutlak sesuai dengan hukum fisika, mendeteksi perintah kembali ke menu, dan membatasi input suhu ekstrem.
+             Mendukung koma atau titik sebagai desimal untuk melayani konvensi lokal, serta anti penumpukan terminal UI.
     @param unit Satuan suhu tempat angka tersebut dimasukkan.
     @return Nilai suhu dalam format desimal (float), atau None jika pengguna ingin kembali ke menu.
     """
+    baris_teks = [
+        f"Unit suhu : {unit}",
+        "Format    : Desimal bisa pakai titik atau koma (cth: 36.5 / 36,5)",
+        "            Mohon JANGAN gunakan pemisah ribuan.",
+        "",
+        f"{WarnaTerminal.FAIL}Kembali   : Ketik 'q' atau 'kembali'{WarnaTerminal.ENDC}"
+    ]
+    
+    pesan_error = ""
     while True:
-        baris_teks = [
-            f"Unit suhu : {unit}",
-            "Format    : Desimal pakai titik (cth: 36.5)",
-            "            Ribuan pakai koma (cth: 1,000,000)",
-            "",
-            f"{WarnaTerminal.FAIL}Kembali   : Ketik 'q' atau 'kembali'{WarnaTerminal.ENDC}"
-        ]
+        bersihkan_layar()
+        tampilkan_tajuk()
         cetak_kotak_ui("Masukkan Nilai Suhu", baris_teks, WarnaTerminal.OKBLUE)
+        
+        if pesan_error:
+            print(f"    {pesan_error}\n")
+            pesan_error = ""
+            
         input_pengguna = input(f"  {WarnaTerminal.BOLD}▶ Nilai: {WarnaTerminal.ENDC}").strip().lower()
         
         if input_pengguna in ['q', 'kembali', 'menu', 'back']:
             return None
             
-        # Hapus koma untuk mempermudah parsing angka ribuan oleh sistem
-        input_bersih = input_pengguna.replace(',', '')
+        # Perbaikan UX: Mengubah koma menjadi titik untuk mengakomodasi format desimal lokal
+        input_bersih = input_pengguna.replace(',', '.')
             
         try:
             nilai = float(input_bersih)
             
             if math.isnan(nilai) or math.isinf(nilai):
-                print(f"    {WarnaTerminal.FAIL}❌ Input tidak valid. Harap masukkan angka yang wajar.{WarnaTerminal.ENDC}\n")
+                pesan_error = f"{WarnaTerminal.FAIL}❌ Input tidak valid. Harap masukkan angka yang wajar.{WarnaTerminal.ENDC}"
                 continue
                 
             if abs(nilai) > 1e15:
-                print(f"    {WarnaTerminal.FAIL}❌ Suhu terlalu ekstrem. Batas maksimum kalkulasi adalah 1 Kuadriliun derajat.{WarnaTerminal.ENDC}\n")
+                pesan_error = f"{WarnaTerminal.FAIL}❌ Suhu terlalu ekstrem. Batas maksimum kalkulasi adalah 1 Kuadriliun derajat.{WarnaTerminal.ENDC}"
                 continue
             
-            if unit == CELSIUS and nilai < -273.15:
-                print(f"    {WarnaTerminal.FAIL}❌ Suhu tidak boleh kurang dari nol mutlak (-273.15 °C).{WarnaTerminal.ENDC}\n")
-                continue
-            elif unit == FAHRENHEIT and nilai < -459.67:
-                print(f"    {WarnaTerminal.FAIL}❌ Suhu tidak boleh kurang dari nol mutlak (-459.67 °F).{WarnaTerminal.ENDC}\n")
-                continue
-            elif unit == REAMUR and nilai < -218.52:
-                print(f"    {WarnaTerminal.FAIL}❌ Suhu tidak boleh kurang dari nol mutlak (-218.52 °R).{WarnaTerminal.ENDC}\n")
-                continue
-            elif unit == KELVIN and nilai < 0:
-                print(f"    {WarnaTerminal.FAIL}❌ Suhu tidak boleh kurang dari 0 K (nol mutlak).{WarnaTerminal.ENDC}\n")
+            # Validasi fisika
+            valid, batas_min = validasi_nol_mutlak(nilai, unit)
+            if not valid:
+                pesan_error = f"{WarnaTerminal.FAIL}❌ Suhu tidak boleh kurang dari nol mutlak ({batas_min}).{WarnaTerminal.ENDC}"
                 continue
 
             print(f"    {WarnaTerminal.OKGREEN}✓ Nilai diterima: {format_angka(nilai)} {unit}{WarnaTerminal.ENDC}\n")
             return nilai
         except ValueError:
-            print(f"    {WarnaTerminal.FAIL}❌ Input tidak valid. Harap masukkan angka yang wajar.{WarnaTerminal.ENDC}\n")
+            pesan_error = f"{WarnaTerminal.FAIL}❌ Input tidak valid. Pastikan hanya memasukkan angka (contoh: -10 atau 36.5).{WarnaTerminal.ENDC}"
 
 def tampilkan_hasil(nilai: float, unit_asal: str, hasil: float, unit_tujuan: str) -> None:
     """!
@@ -278,29 +314,33 @@ def tampilkan_hasil(nilai: float, unit_asal: str, hasil: float, unit_tujuan: str
     cetak_kotak_ui("HASIL KONVERSI", baris_teks, WarnaTerminal.OKGREEN)
     print()
 
-def minta_tindakan_lanjutan() -> str:
+def minta_tindakan_lanjutan(pesan_error: str = "") -> str:
     """!
     @brief Meminta instruksi selanjutnya dari pengguna setelah konversi selesai.
+    @param pesan_error Teks error jika input sebelumnya tidak valid.
     @return String yang mendefinisikan tindakan selanjutnya ('tukar', 'baru', 'keluar').
     """
     opsi = [
         "1. Tukar unit (Swap) dan hitung ulang",
         "2. Konversi baru",
         "",
-        f"{WarnaTerminal.FAIL}3. Keluar{WarnaTerminal.ENDC}"
+        f"{WarnaTerminal.FAIL}3. Keluar (Ketik '3' atau 'q'){WarnaTerminal.ENDC}"
     ]
-    while True:
-        cetak_kotak_ui("Tindakan Selanjutnya", opsi, WarnaTerminal.HEADER)
-        pilihan = input(f"  {WarnaTerminal.BOLD}▶ Pilihan Anda (1/2/3): {WarnaTerminal.ENDC}").strip()
+    cetak_kotak_ui("Tindakan Selanjutnya", opsi, WarnaTerminal.HEADER)
+    
+    if pesan_error:
+        print(f"    {pesan_error}\n")
         
-        if pilihan == "1":
-            return "tukar"
-        elif pilihan == "2":
-            return "baru"
-        elif pilihan == "3":
-            return "keluar"
-        else:
-            print(f"    {WarnaTerminal.FAIL}❌ Pilihan tidak valid. Silakan ketik 1, 2, atau 3.{WarnaTerminal.ENDC}\n")
+    pilihan = input(f"  {WarnaTerminal.BOLD}▶ Pilihan Anda (1/2/3/q): {WarnaTerminal.ENDC}").strip().lower()
+    
+    if pilihan in ["1", "tukar", "swap"]:
+        return "tukar"
+    elif pilihan in ["2", "baru"]:
+        return "baru"
+    elif pilihan in ["3", "q", "keluar", "quit", "exit"]:
+        return "keluar"
+    else:
+        return "invalid"
 
 def jalankan_aplikasi() -> None:
     """!
@@ -308,9 +348,6 @@ def jalankan_aplikasi() -> None:
     @details Mengkoordinasikan siklus mulai dari meminta unit hingga menampilkan hasil dan mereset ulang kondisi (state).
     """
     while True:
-        bersihkan_layar()
-        tampilkan_tajuk()
-        
         unit_asal = minta_pilihan_unit("Pilih Unit Suhu ASAL")
         unit_tujuan = minta_pilihan_unit("Pilih Unit Suhu TUJUAN", bisa_kembali=True, unit_dilarang=unit_asal)
         
@@ -327,25 +364,46 @@ def jalankan_aplikasi() -> None:
         while True:
             try:
                 hasil = hitung_konversi(nilai, unit_asal, unit_tujuan)
-                bersihkan_layar()
-                tampilkan_tajuk()
                 
-                if baru_ditukar:
-                    print(f"  {WarnaTerminal.WARNING}✦ Unit telah ditukar: {unit_asal} ➔  {unit_tujuan}{WarnaTerminal.ENDC}\n")
-                    baru_ditukar = False
+                pesan_error_tindakan = ""
+                # Loop untuk menangani validasi input tindakan lanjutan
+                while True:
+                    bersihkan_layar()
+                    tampilkan_tajuk()
                     
-                tampilkan_hasil(nilai, unit_asal, hasil, unit_tujuan)
+                    if baru_ditukar:
+                        print(f"  {WarnaTerminal.WARNING}✦ Unit telah ditukar: {unit_asal} ➔  {unit_tujuan}{WarnaTerminal.ENDC}\n")
+                        
+                    tampilkan_hasil(nilai, unit_asal, hasil, unit_tujuan)
+                    
+                    tindakan = minta_tindakan_lanjutan(pesan_error_tindakan)
+                    
+                    if tindakan != "invalid":
+                        baru_ditukar = False # Reset flag peringatan swap
+                        break
+                    else:
+                        pesan_error_tindakan = f"{WarnaTerminal.FAIL}❌ Pilihan tidak valid. Silakan ketik 1, 2, 3, atau q.{WarnaTerminal.ENDC}"
+                        
             except Exception as e:
                 print(f"  {WarnaTerminal.FAIL}❌ Terjadi kesalahan sistem: {e}{WarnaTerminal.ENDC}\n")
                 input(f"  {WarnaTerminal.BOLD}▶ Tekan Enter untuk kembali ke menu utama...{WarnaTerminal.ENDC}")
                 break
 
-            tindakan = minta_tindakan_lanjutan()
-            
             if tindakan == "keluar":
-                print(f"  {WarnaTerminal.OKCYAN}Program selesai. Terima kasih.{WarnaTerminal.ENDC}\n")
+                print(f"\n  {WarnaTerminal.OKCYAN}Program selesai. Terima kasih.{WarnaTerminal.ENDC}\n")
                 return
             elif tindakan == "tukar":
+                # Proteksi Bug Nol Mutlak: Validasi sebelum menukar
+                valid, batas = validasi_nol_mutlak(nilai, unit_tujuan)
+                if not valid:
+                    # Jika tidak valid, tahan layar sejenak untuk peringatan
+                    print(f"    {WarnaTerminal.FAIL}❌ PENOLAKAN SISTEM: Nilai {nilai} dilarang untuk skala {unit_tujuan}{WarnaTerminal.ENDC}")
+                    print(f"    {WarnaTerminal.FAIL}   (Suhu tidak boleh kurang dari nol mutlak {batas}).{WarnaTerminal.ENDC}\n")
+                    input(f"  {WarnaTerminal.BOLD}▶ Tekan Enter untuk mengulang...{WarnaTerminal.ENDC}")
+                    # Kembali ke awal kalkulasi ulang tanpa menukar unit
+                    continue
+                
+                # Pertukaran unit dilakukan jika lolos validasi fisika
                 unit_asal, unit_tujuan = unit_tujuan, unit_asal
                 baru_ditukar = True
             elif tindakan == "baru":
