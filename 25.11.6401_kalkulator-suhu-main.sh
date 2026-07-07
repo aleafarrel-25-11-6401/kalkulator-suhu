@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Lokasi skrip Python yang menangani semua perhitungan
-SCRIPT_PYTHON="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/25.11.6401_kalkulator-suhu.py"
+SCRIPT_PYTHON="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/25.11.6401_kalkulator-suhu-calculate.py"
 
 # Lokasi skrip yang khusus menangani tampilan interface (visual)
 VISUAL_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/visual/ui.sh"

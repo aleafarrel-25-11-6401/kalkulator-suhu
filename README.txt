@@ -17,6 +17,6 @@ chmod +x *
 
 3. Jalankan program utamanya dengan:
 
-./25.11.6401_kalkulator-suhu.sh
+./25.11.6401_kalkulator-suhu-main.sh
 
 (Catatan: Program ini harus dijalankan melalui file Bash (.sh) di atas, karena file Python yang ada hanya bertindak sebagai otak/logika di latar belakang).
